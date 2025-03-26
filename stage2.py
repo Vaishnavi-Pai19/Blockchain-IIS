@@ -1,20 +1,36 @@
 import hashlib
 
-# Class to construct a Merkle Tree and compute the Merkle Root
+class Block:
+    def __init__(self, block_num, block_hash, txns, merkle_root):
+        self.block_num = block_num
+        self.block_hash = block_hash
+        self.txns = txns
+        self.merkle_root = merkle_root
+
+class Blockchain:
+    def __init__(self):
+        self.blocks = []
+
+    def add_block(self, block_num, block_hash, txns, merkle_root):
+        self.blocks.append(Block(block_num, block_hash, txns, merkle_root))
+
+    def print_blocks(self):
+        for block in self.blocks:
+            print(block.block_num)
+            print(f"Block hash for Block {block.block_num}: {block.block_hash}")
+            print(block.txns)
+            print(f"Merkle Root for Block {block.block_num}: {block.merkle_root}")
+
 class MerkleTree:
     
     def __init__(self, transactions):
         self.transactions = [tx for tx in transactions if tx is not None]
-        if len(transactions) < 1 or len(transactions) > 3:
-            raise ValueError("Merkle Tree must be constructed with 1 to 3 transactions.")
-        
         self.root = self.build_tree()
     
     def hash_data(self, data):
         return hashlib.sha3_256(data.encode()).hexdigest()
 
     def build_tree(self):
-        # Hash individual transactions
         hashes = [self.hash_data(tx) for tx in self.transactions]
         
         # Handle case with 1 transaction (root is just the hash of that transaction)
@@ -32,10 +48,18 @@ class MerkleTree:
 
     def get_root(self):
         return self.root
-    
+            
 def hash_data(data):
-        return hashlib.sha3_256(data.encode()).hexdigest()
+    return hashlib.sha3_256(data.encode()).hexdigest()
 
+def sort_txns(txns):
+    idx_txns = [(idx, tx) for idx, tx in enumerate(txns)]
+
+    idx_txns.sort(key=lambda item: (-item[1]["incentive"], item[1]["to"], item[0]))
+
+    return [tx for _, tx in idx_txns]
+
+blockchain = Blockchain()
 
 num_acc = int(input("Enter the number of accounts: "))
 accounts = {}
@@ -50,13 +74,15 @@ num_txns = int(input("Enter the number of transactions: "))
 txns = []
 
 for _ in range(num_txns):
-    acc1, acc2, amount, extra_data = input().split()  
+    acc1, acc2, amount, incentive = input().split()  
     txns.append({
         "from": acc1,
         "to": acc2,
         "amt": int(amount),
-        "extra_data": int(extra_data),
+        "incentive": int(incentive),
     })
+
+txns = sort_txns(txns)
 
 count, block_count, prev_block_hash = 0, 0, 0
 merkle_data = [None] * 3
@@ -67,28 +93,30 @@ for i in range(num_txns):
         accounts[txns[i]["from"]] -= txns[i]["amt"]
         accounts[txns[i]["to"]] += txns[i]["amt"]
 
-        # Store concatenated transaction string
-        merkle_data[count] = txns[i]["from"] + txns[i]["to"] + str(txns[i]["amt"])
+        # Store concatenated transaction string, here incentive is added
+        merkle_data[count] = txns[i]["from"] + str(txns[i]["incentive"]) + txns[i]["to"] + str(txns[i]["amt"])
         valid_transactions.append(txns[i])
         count += 1
 
         if count == 3:
+            print(merkle_data)
             block_count += 1
             merkle_tree = MerkleTree(merkle_data)
 
             transactions_array = [
-                [tx["from"], tx["to"], tx["amt"], tx["extra_data"]]
+                [tx["from"], tx["to"], tx["amt"], tx["incentive"]]
                 for tx in valid_transactions[-3:]  # Get last 3 valid transactions
             ]
             
             current_block_hash = hash_data(str(prev_block_hash) + str(block_count) + merkle_tree.get_root())
 
-            print(block_count)
-            print(f"Block hash for Block {block_count}",current_block_hash)
-            print(transactions_array)
-            print(f"Merkle Root for Block {block_count}", merkle_tree.get_root())
-            
-            # Reset for next batch
+            blockchain.add_block(
+                block_count,
+                current_block_hash,
+                transactions_array,
+                merkle_tree.get_root()
+            )
+
             merkle_data = [None] * 3
             count = 0
             prev_block_hash = current_block_hash
@@ -97,21 +125,18 @@ for i in range(num_txns):
 
 if count > 0:
     block_count += 1
-    valid_txns = [tx for tx in merkle_data if tx is not None]
-    if valid_txns:
-        merkle_tree = MerkleTree(valid_txns)
-        transactions_array = [
-        [tx["from"], tx["to"], tx["amt"], tx["extra_data"]]
-        for tx in valid_transactions[-count:]  # Get last 'count' transactions
-        ]
+    merkle_tree = MerkleTree([tx for tx in merkle_data if tx is not None])
+    transactions_array = [
+        [tx["from"], tx["to"], tx["amt"], tx["incentive"]]
+        for tx in valid_transactions[-count:]
+    ]
+    current_block_hash = hash_data(str(prev_block_hash) + str(block_count) + merkle_tree.get_root())
+    
+    blockchain.add_block(
+        block_count,
+        current_block_hash,
+        transactions_array,
+        merkle_tree.get_root()
+    )
 
-        current_block_hash = hash_data(str(prev_block_hash) + str(block_count) + merkle_tree.get_root())
-        
-        print(block_count)
-        print(f"Block hash for Block {block_count}",current_block_hash)
-        print(transactions_array)
-        print(f"Merkle Root for Block {block_count}", merkle_tree.get_root())
-
-
-# print("Accounts with their new balances: ", accounts)
-
+blockchain.print_blocks()
