@@ -160,7 +160,7 @@ for i in range(num_txns):
 
             transactions_array = [
                 [tx["from"], tx["to"], tx["amt"], tx["incentive"]]
-                for tx in valid_transactions[-4:]  # Get last 3 valid transactions
+                for tx in valid_transactions[-4:]  # Get last 4 valid transactions
             ]
             
             current_block_hash = hash_data(str(prev_block_hash) + str(block_count) + merkle_tree.get_root())
