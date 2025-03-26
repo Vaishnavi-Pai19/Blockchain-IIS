@@ -27,11 +27,20 @@ for _ in range(num_txns):
 # print(txns[0]["from"])
 # print(accounts[txns[0]["from"]])
 
+count = 0
+merkle_data = [None] * 3
+
 for i in range(num_txns):
     # print (accounts[txns[i]["from"]], txns[i]["amt"])
     if (accounts[txns[i]["from"]] >= txns[i]["amt"]):
         accounts[txns[i]["from"]] -= txns[i]["amt"]
         accounts[txns[i]["to"]] += txns[i]["amt"]
+        merkle_data[count] = txns[i]["from"] + txns[i]["to"] + str(txns[i]["amt"])
+        count += 1
+        if (count == 3 or i == num_txns-1):
+            print(merkle_data)
+            count = 0
+            merkle_data = [None] * 3
     else:
         continue
 
