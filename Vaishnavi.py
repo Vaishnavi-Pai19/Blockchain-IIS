@@ -18,44 +18,66 @@ class Blockchain:
     def print_blocks(self):
         for block in self.blocks:
             print(block.block_num)
-            print(f"Block hash for Block {block.block_num}: {block.block_hash}")
+            print(block.block_hash)
             print(block.txns)
-            print(f"Merkle Root for Block {block.block_num}: {block.merkle_root}")
+            print(block.merkle_root)
             print(block.nonce_miner)
 
-class MerkleTree:
-    def __init__(self, transactions):
-        self.transactions = [tx for tx in transactions if tx is not None]
-        self.root = self.build_tree()
+class MerkleNode:
+    def __init__(self, data):
+        self.data = data
+        self.left = None
+        self.right = None
     
-    def hash_data(self, data):
-        return hashlib.sha3_256(data.encode()).hexdigest()
+    def isLeaf(self):
+        return self.left is None and self.right is None
 
-    def build_tree(self):
-        hashes = [self.hash_data(tx) for tx in self.transactions]
+class MerkleTree:
+    def __init__(self, transactions=None):
+        self.transactions = transactions if transactions is not None else []
+        self.root = None
+        self._merkleRoot = ''
+        self.build_tree(self.transactions)  
         
-        # Handle case with 1 transaction (root is just the hash of that transaction)
-        if len(hashes) == 1:
-            return hashes[0]
+    def _hash_data(self, data):
+        return hashlib.sha3_256(data.encode()).hexdigest()
         
-        # Handle case with 2 transactions
-        if len(hashes) == 2:
-            return self.hash_data(hashes[0] + hashes[1])
+    def build_tree(self, transactions):
+        leaves = [MerkleNode(self._hash_data(tx)) for tx in transactions if tx is not None]
+        
+        def _build(nodes):
+            if len(nodes) == 1:
+                return nodes[0]
             
-        # Handle case with 3 transactions
-        if len(hashes) == 3:
-            h1, h2, h3 = hashes
-            h12 = self.hash_data(h1 + h2)
-            return self.hash_data(h12 + h3)
+            parents = []
+            i = 0
+            while i < len(nodes):
+                if i + 1 < len(nodes):
+                    parent = MerkleNode('')
+                    parent.left = nodes[i]
+                    parent.right = nodes[i+1]
+                    parents.append(parent)
+                    i += 2
+                else:
+                    parents.append(nodes[i])
+                    i += 1
+            return _build(parents)
         
-        # Full merkle tree with 4 transactions
-        h1, h2, h3, h4 = hashes
-        h12 = self.hash_data(h1 + h2)
-        h34 = self.hash_data(h3 + h4)
-        return self.hash_data(h12 + h34)
+        self.root = _build(leaves) if leaves else None
+        self._calculate_root()
+    
+    def _calculate_root(self):
+        def _compute_hash(node):
+            if node.isLeaf():
+                return node.data
+            left_hash = _compute_hash(node.left)
+            right_hash = _compute_hash(node.right)
+            return self._hash_data(left_hash + right_hash)
+        
+        self._merkleRoot = _compute_hash(self.root) if self.root else ''
 
     def get_root(self):
-        return self.root
+        return self._merkleRoot
             
 def hash_data(data):
     return hashlib.sha3_256(data.encode()).hexdigest()
@@ -98,16 +120,19 @@ def find_miner(miners, block_num):
 def main():
     blockchain = Blockchain()
 
-    num_acc = int(input("Enter the number of accounts: "))
+    # num_acc = int(input("Enter the number of accounts: "))
+    num_acc = int(input())
     accounts = {}
 
     for i in range(num_acc):
-        acc, bal = input(f"Enter details of account {i+1}: ").split()
+        # acc, bal = input(f"Enter details of account {i+1}: ").split()
+        acc, bal = input().split()
         accounts[acc] = int(bal)
 
-    print("Accounts with their balances: ", accounts)
+    # print("Accounts with their balances: ", accounts)
 
-    num_txns = int(input("Enter the number of transactions: "))
+    # num_txns = int(input("Enter the number of transactions: "))
+    num_txns = int(input())
     txns = []
 
     for _ in range(num_txns):
@@ -121,9 +146,11 @@ def main():
 
     txns = sort_txns(txns)
 
-    block_reward = int(input("Enter the block reward available: "))
+    # block_reward = int(input("Enter the block reward available: "))
+    block_reward = int(input())
 
-    num_miners = int(input("Enter the number of miners: "))
+    # num_miners = int(input("Enter the number of miners: "))
+    num_miners = int(input())
     miners = []
 
     for _ in range(num_miners):
@@ -151,7 +178,6 @@ def main():
             accounts[txns[i]["from"]] -= txns[i]["amt"]
             accounts[txns[i]["to"]] += txns[i]["amt"]
 
-            # Store concatenated transaction string
             merkle_data[count] = txns[i]["from"] + str(txns[i]["incentive"]) + txns[i]["to"] + str(txns[i]["amt"])
             valid_transactions.append(txns[i])
             count += 1
@@ -163,7 +189,7 @@ def main():
 
                 transactions_array = [
                     [tx["from"], tx["to"], tx["amt"], tx["incentive"]]
-                    for tx in valid_transactions[-4:]  # Get last 4 valid transactions
+                    for tx in valid_transactions[-4:]                # Getting last 4 valid transactions
                 ]
                 
                 current_block_hash = hash_data(str(prev_block_hash) + str(block_count) + merkle_tree.get_root())
@@ -214,7 +240,6 @@ def main():
     blockchain.print_blocks()
 
 # print("Accounts with their new balances: ", accounts)
-
 
 if __name__ == '__main__':
     main()
